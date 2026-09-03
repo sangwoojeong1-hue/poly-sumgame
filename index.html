@@ -1,0 +1,835 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>다항식 합차 마스터</title>
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <link rel="stylesheet" as="style" crossorigin href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css" />
+    
+    <!-- 오디오 생성을 위한 Tone.js 추가 -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js"></script>
+
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        toss: {
+                            blue: '#3182F6',
+                            blueHover: '#1B64DA',
+                            bg: '#F2F4F6',
+                            text: '#191F28',
+                            textSecondary: '#8B95A1',
+                            card: '#FFFFFF',
+                            border: '#E5E8EB'
+                        }
+                    },
+                    fontFamily: {
+                        sans: ['Pretendard', 'sans-serif'],
+                    }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        body {
+            font-family: 'Pretendard', sans-serif;
+            background-color: #E5E8EB;
+            color: #191F28;
+            -webkit-tap-highlight-color: transparent;
+            overscroll-behavior-y: none;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+        }
+        
+        #root {
+            width: 100%;
+            max-width: 480px;
+            height: 100vh;
+            height: 100dvh;
+            background-color: #F2F4F6;
+            position: relative;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            box-shadow: 0 0 40px rgba(0,0,0,0.08);
+        }
+
+        @media (min-width: 481px) {
+            #root {
+                height: 90vh;
+                max-height: 850px;
+                border-radius: 24px;
+                border: 8px solid #FFFFFF;
+            }
+        }
+
+        .card-shadow { box-shadow: 0 4px 20px rgba(0,0,0,0.04); }
+        .toss-btn { transition: transform 0.1s ease, background-color 0.2s ease, border-color 0.2s ease; }
+        .toss-btn:active:not(:disabled) { transform: scale(0.97); }
+        
+        .math-font { font-family: 'Times New Roman', Times, serif; letter-spacing: 0.5px; }
+
+        .toss-input {
+            background-color: #F9FAFB;
+            border: 1px solid #E5E8EB;
+            border-radius: 12px;
+            padding: 12px 16px;
+            font-size: 1.125rem;
+            transition: all 0.2s;
+            outline: none;
+        }
+        .toss-input:focus {
+            background-color: #FFFFFF;
+            border-color: #3182F6;
+            box-shadow: 0 0 0 3px rgba(49, 130, 246, 0.1);
+        }
+
+        .fade-in { animation: fadeIn 0.4s ease-out forwards; }
+        .slide-up { animation: slideUp 0.4s ease-out forwards; }
+        
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        @keyframes slideUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+
+        input[type=number]::-webkit-inner-spin-button, 
+        input[type=number]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+        
+        .hide-scrollbar::-webkit-scrollbar { display: none; }
+        .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+        
+        /* 추가된 CSS: 작은 화면(높이) 대응 및 카드 뒤집기 3D 애니메이션 */
+        @media (max-height: 700px) {
+            .toss-btn { padding-top: 0.8rem !important; padding-bottom: 0.8rem !important; font-size: 1rem !important; }
+            .card-shadow { padding: 1rem !important; }
+            .text-xl { font-size: 1.125rem !important; line-height: 1.75rem !important; }
+            h1.text-2xl { font-size: 1.25rem !important; }
+            .pt-12 { padding-top: 1.5rem !important; }
+            .pb-6 { padding-bottom: 0.75rem !important; }
+        }
+
+        .flip-card {
+            perspective: 1000px;
+        }
+        .flip-card-inner {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            text-align: center;
+            transition: transform 0.5s cubic-bezier(0.4, 0.2, 0.2, 1);
+            transform-style: preserve-3d;
+        }
+        .flip-card.flipped .flip-card-inner {
+            transform: rotateY(180deg);
+        }
+        .flip-card-front, .flip-card-back {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            -webkit-backface-visibility: hidden;
+            backface-visibility: hidden;
+            border-radius: 0.75rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border: 2px solid;
+        }
+        .flip-card-front {
+            background-color: #F2F4F6;
+            border-color: #E5E8EB;
+            color: #B0B8C1;
+            font-size: 1.5rem;
+            font-weight: 900;
+        }
+        .flip-card-back {
+            background-color: #ffffff;
+            border-color: #3182F6;
+            transform: rotateY(180deg);
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+        }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const AudioEngine = {
+            isInit: false,
+            isMuted: false,
+            synth: null,
+            sequence: null,
+            init: async function() {
+                if (this.isInit) return;
+                await Tone.start();
+                
+                // 레트로 게임 스타일의 신디사이저 설정
+                this.synth = new Tone.Synth({
+                    oscillator: { type: 'square' },
+                    envelope: { attack: 0.05, decay: 0.2, sustain: 0.2, release: 0.1 }
+                }).toDestination();
+                this.synth.volume.value = -12; // 볼륨 조절
+
+                // 흥미로운 8비트풍 베이스라인/아르페지오 멜로디
+                const melody = [
+                    "C3", "G3", "C4", "G3", 
+                    "F3", "C4", "F4", "C4",
+                    "G3", "D4", "G4", "D4",
+                    "F3", "C4", "G3", "B3"
+                ];
+
+                this.sequence = new Tone.Sequence((time, note) => {
+                    this.synth.triggerAttackRelease(note, "8n", time);
+                }, melody, "8n");
+
+                Tone.Transport.bpm.value = 135; // 빠른 템포
+                this.sequence.start(0);
+                Tone.Transport.start();
+                this.isInit = true;
+            },
+            toggleMute: function() {
+                this.isMuted = !this.isMuted;
+                Tone.Destination.mute = this.isMuted;
+                return this.isMuted;
+            },
+            stop: function() {
+                if (this.sequence) this.sequence.stop();
+                Tone.Transport.stop();
+            }
+        };
+
+        const getRand = (min, max, allowZero = false) => {
+            let num;
+            do { num = Math.floor(Math.random() * (max - min + 1)) + min; } 
+            while (!allowZero && num === 0);
+            return num;
+        };
+
+        const generatePoly = (type) => {
+            if (type === 'stage1' || type === 'stage3') {
+                return { x: getRand(-5, 5), y: getRand(-5, 5) };
+            } else if (type === 'stage2') {
+                const availableKeys = ['x2', 'x', 'c'].sort(() => 0.5 - Math.random()).slice(0, 2);
+                const res = {};
+                availableKeys.forEach(k => res[k] = getRand(-4, 4));
+                return res;
+            }
+            return {};
+        };
+
+        const formatPoly = (poly) => {
+            let terms = [];
+            const addTerm = (coeff, variable, isFirst) => {
+                if (coeff === 0 || coeff === undefined) return;
+                let sign = '';
+                if (coeff > 0) sign = isFirst ? '' : '+ ';
+                else sign = isFirst ? '- ' : '- ';
+                // 첫 항이 음수일 때 띄어쓰기 없이 붙임
+                if (isFirst && coeff < 0) sign = '-';
+                
+                let absCoeff = Math.abs(coeff);
+                let coeffStr = (absCoeff === 1 && variable !== '') ? '' : absCoeff;
+                terms.push(<span key={variable+coeff} className="inline-block mx-0.5">{sign}{coeffStr}<span className="math-font italic">{variable}</span></span>);
+            };
+
+            let isFirst = true;
+            if (poly.x2 !== undefined) { addTerm(poly.x2, 'x²', isFirst); isFirst = false; }
+            if (poly.x !== undefined) { addTerm(poly.x, 'x', isFirst); isFirst = false; }
+            if (poly.y !== undefined) { addTerm(poly.y, 'y', isFirst); isFirst = false; }
+            if (poly.c !== undefined) { addTerm(poly.c, '', isFirst); isFirst = false; }
+
+            if (terms.length === 0) return <span>0</span>;
+            return <div className="flex flex-wrap items-center justify-center">{terms}</div>;
+        };
+
+        const calcPoly = (p1, p2, op) => {
+            const res = {};
+            const keys = ['x2', 'x', 'y', 'c'];
+            keys.forEach(k => {
+                const val1 = p1[k] || 0;
+                const val2 = p2[k] || 0;
+                if (val1 !== 0 || val2 !== 0) {
+                    res[k] = op === '+' ? val1 + val2 : val1 - val2;
+                }
+            });
+            return res;
+        };
+
+        const formatNum = (num) => num < 0 ? `(${num})` : num;
+
+        const Button = ({ children, onClick, disabled, variant = 'primary', className = '' }) => {
+            const baseClass = "toss-btn w-full py-4 rounded-2xl text-lg font-bold transition-all flex items-center justify-center ";
+            const variants = {
+                primary: "bg-toss-blue text-white disabled:bg-gray-200 disabled:text-gray-400",
+                secondary: "bg-white text-toss-blue border-2 border-toss-blue/20 disabled:bg-gray-50 disabled:border-gray-200 disabled:text-gray-400",
+                danger: "bg-red-500 text-white"
+            };
+            return (
+                <button onClick={onClick} disabled={disabled} className={`${baseClass} ${variants[variant]} ${className}`}>
+                    {children}
+                </button>
+            );
+        };
+
+        const Card = ({ children, className = '' }) => (
+            <div className={`bg-white rounded-3xl p-6 card-shadow border border-gray-100 ${className}`}>{children}</div>
+        );
+
+        const PolyCard = ({ poly, label, bgColor = 'bg-white', borderColor = 'border-transparent' }) => (
+            <div className={`relative ${bgColor} rounded-2xl p-5 flex flex-col items-center justify-center min-h-[100px] border-2 ${borderColor}`}>
+                {label && <span className="absolute top-2 left-3 text-xs font-bold text-toss-textSecondary opacity-80">{label}</span>}
+                <div className="text-xl font-medium text-toss-text mt-2">{formatPoly(poly)}</div>
+            </div>
+        );
+
+        const Header = ({ title, step, maxStep, isMuted, toggleMute }) => (
+            <div className="pt-12 pb-4 px-6 bg-transparent z-10 flex flex-col gap-2 relative">
+                {toggleMute && (
+                    <button onClick={toggleMute} className="absolute top-10 right-5 p-2 bg-white rounded-full shadow-sm text-gray-500 hover:text-toss-blue transition-colors z-20">
+                        {isMuted ? (
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon><line x1="23" y1="9" x2="17" y2="15"></line><line x1="17" y1="9" x2="23" y2="15"></line></svg>
+                        ) : (
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon><path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"></path></svg>
+                        )}
+                    </button>
+                )}
+                {step && (
+                    <div className="flex items-center gap-1 mt-2">
+                        {[...Array(maxStep)].map((_, i) => (
+                            <div key={i} className={`h-1.5 rounded-full flex-1 ${i < step ? 'bg-toss-blue' : 'bg-gray-200'}`} />
+                        ))}
+                    </div>
+                )}
+                <h1 className="text-2xl font-bold text-toss-text pr-10">{title}</h1>
+            </div>
+        );
+
+        const ExplanationView = ({ p1, p2, op, correct, title, isCorrect }) => (
+            <Card className={`slide-up p-5 ${isCorrect ? '!bg-green-50 border-green-200' : '!bg-red-50 border-red-200'} mt-4`}>
+                <div className={`flex items-center justify-center gap-2 font-bold text-lg mb-4 ${isCorrect ? 'text-green-600' : 'text-red-500'}`}>
+                    {isCorrect ? (
+                        <><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg> 정답입니다!</>
+                    ) : (
+                        <><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"></circle><line x1="15" y1="9" x2="9" y2="15"></line><line x1="9" y1="9" x2="15" y2="15"></line></svg> 아쉽지만 오답이에요. 해설을 확인하세요!</>
+                    )}
+                </div>
+                <div className={`bg-white rounded-xl p-4 border ${isCorrect ? 'border-green-100' : 'border-red-100'} space-y-3`}>
+                    <div className="flex justify-between items-center text-sm">
+                        <span className="font-bold text-blue-600"><span className="math-font italic">x</span> 항 계산</span>
+                        <span className="font-medium text-gray-700">{formatNum(p1.x)} {op} {formatNum(p2.x)} = {correct.x}</span>
+                    </div>
+                    <div className="h-px bg-gray-100 w-full"></div>
+                    <div className="flex justify-between items-center text-sm">
+                        <span className="font-bold text-pink-600"><span className="math-font italic">y</span> 항 계산</span>
+                        <span className="font-medium text-gray-700">{formatNum(p1.y)} {op} {formatNum(p2.y)} = {correct.y}</span>
+                    </div>
+                    <div className="mt-3 pt-3 border-t border-dashed border-gray-200 text-center font-bold text-toss-text text-lg">
+                        최종 결과: {formatPoly(correct)}
+                    </div>
+                </div>
+            </Card>
+        );
+
+        const Stage1 = ({ onComplete, onAttempt }) => {
+            const [p1] = React.useState(() => generatePoly('stage1'));
+            const [p2] = React.useState(() => generatePoly('stage1'));
+            const [op, setOp] = React.useState(null);
+            const [ansX, setAnsX] = React.useState('');
+            const [ansY, setAnsY] = React.useState('');
+            
+            // 상태: playing(진행중), correct(정답), wrong(오답)
+            const [status, setStatus] = React.useState('playing'); 
+
+            const checkAnswer = () => {
+                const correct = calcPoly(p1, p2, op);
+                const isHit = parseInt(ansX) === correct.x && parseInt(ansY) === correct.y;
+                onAttempt(isHit, op);
+
+                setStatus(isHit ? 'correct' : 'wrong');
+            };
+
+            const correct = calcPoly(p1, p2, op || '+');
+
+            return (
+                <div className="flex flex-col h-full fade-in pb-6 px-5">
+                    <div className="flex-1 overflow-y-auto hide-scrollbar space-y-6 pt-2 pb-4">
+                        <p className="text-toss-textSecondary text-sm font-medium">연산 기호를 선택하고 계산 결과를 입력하세요.</p>
+                        
+                        <div className="flex items-center justify-between gap-2">
+                            <div className="flex-1">
+                                <PolyCard poly={p1} label="다항식 A" bgColor="bg-blue-50" borderColor="border-blue-100" />
+                            </div>
+                            <div className="flex flex-col gap-2">
+                                <button onClick={() => status === 'playing' && setOp('+')} className={`w-12 h-12 rounded-full font-bold text-xl flex items-center justify-center transition-colors ${op === '+' ? 'bg-toss-blue text-white shadow-md' : 'bg-white border border-gray-200 text-gray-400'}`}>+</button>
+                                <button onClick={() => status === 'playing' && setOp('-')} className={`w-12 h-12 rounded-full font-bold text-xl flex items-center justify-center transition-colors ${op === '-' ? 'bg-toss-blue text-white shadow-md' : 'bg-white border border-gray-200 text-gray-400'}`}>-</button>
+                            </div>
+                            <div className="flex-1">
+                                <PolyCard poly={p2} label="다항식 B" bgColor="bg-pink-50" borderColor="border-pink-100" />
+                            </div>
+                        </div>
+
+                        {op && status === 'playing' && (
+                            <Card className="slide-up p-5 border-2 border-transparent">
+                                <h3 className="font-bold text-sm text-toss-textSecondary mb-4">계산된 계수를 입력하세요</h3>
+                                <div className="space-y-3">
+                                    <div className="flex items-center gap-3">
+                                        <span className="font-bold text-toss-text w-16 bg-gray-50 py-3 rounded-xl text-center border border-gray-100"><span className="math-font italic">x</span> 계수</span>
+                                        <input type="number" value={ansX} onChange={e => setAnsX(e.target.value)} className="flex-1 toss-input text-center font-bold text-lg" placeholder="?" />
+                                    </div>
+                                    <div className="flex items-center gap-3">
+                                        <span className="font-bold text-toss-text w-16 bg-gray-50 py-3 rounded-xl text-center border border-gray-100"><span className="math-font italic">y</span> 계수</span>
+                                        <input type="number" value={ansY} onChange={e => setAnsY(e.target.value)} className="flex-1 toss-input text-center font-bold text-lg" placeholder="?" />
+                                    </div>
+                                </div>
+                            </Card>
+                        )}
+
+                        {status !== 'playing' && (
+                            <ExplanationView p1={p1} p2={p2} op={op} correct={correct} isCorrect={status === 'correct'} />
+                        )}
+                    </div>
+
+                    <div className="pt-2 mt-auto z-10 bg-gradient-to-t from-[#F2F4F6] pb-2">
+                        {status === 'playing' ? (
+                            <Button onClick={checkAnswer} disabled={!op || ansX === '' || ansY === ''}>
+                                정답 확인
+                            </Button>
+                        ) : (
+                            <Button onClick={onComplete} className="!bg-toss-text">다음 단계로 가기</Button>
+                        )}
+                    </div>
+                </div>
+            );
+        };
+
+        const Stage2 = ({ onComplete, onAttempt }) => {
+            const [p1] = React.useState(() => generatePoly('stage2'));
+            const [p2] = React.useState(() => generatePoly('stage2'));
+            const [op] = React.useState(() => Math.random() > 0.5 ? '+' : '-');
+            const [choices, setChoices] = React.useState([]);
+            const [selectedChoice, setSelectedChoice] = React.useState(null);
+            
+            const [status, setStatus] = React.useState('playing');
+            const correctResult = React.useMemo(() => calcPoly(p1, p2, op), [p1, p2, op]);
+
+            React.useEffect(() => {
+                let newChoices = [correctResult];
+                while(newChoices.length < 4) {
+                    const wrong = calcPoly(
+                        p1,
+                        { x2: p2.x2 ? p2.x2 * (Math.random()>0.5?1:-1) : 0, 
+                          x: p2.x ? p2.x * (Math.random()>0.5?1:-1) : 0, 
+                          c: p2.c ? p2.c * (Math.random()>0.5?1:-1) : 0 }, 
+                        Math.random() > 0.5 ? '+' : '-'
+                    );
+                    if (!newChoices.some(c => c.x2 === wrong.x2 && c.x === wrong.x && c.c === wrong.c)) {
+                        newChoices.push(wrong);
+                    }
+                }
+                setChoices(newChoices.sort(() => Math.random() - 0.5));
+            }, [p1, p2, op, correctResult]);
+
+            const handleCheck = () => {
+                if (!selectedChoice) return;
+                const isHit = selectedChoice.x2 === correctResult.x2 && selectedChoice.x === correctResult.x && selectedChoice.c === correctResult.c;
+                onAttempt(isHit, op);
+
+                setStatus(isHit ? 'correct' : 'wrong');
+            };
+
+            return (
+                <div className="flex flex-col h-full fade-in pb-6 px-5">
+                    <div className="flex-1 overflow-y-auto hide-scrollbar space-y-5 pt-2 pb-4">
+                        <p className="text-toss-textSecondary text-sm font-medium">동류항끼리 계산하여 알맞은 결과를 선택하세요.</p>
+                        
+                        <div className="bg-toss-blue rounded-3xl p-6 text-white card-shadow relative overflow-hidden flex flex-col items-center justify-center min-h-[140px]">
+                            <div className="absolute top-0 right-0 w-32 h-32 bg-white opacity-10 rounded-full -mr-10 -mt-10"></div>
+                            <div className="flex items-center justify-center gap-2 text-xl relative z-10 font-medium whitespace-nowrap">
+                                <span>(</span>{formatPoly(p1)}<span>)</span>
+                            </div>
+                            <div className="text-3xl font-extrabold text-yellow-300 my-1 relative z-10">{op}</div>
+                            <div className="flex items-center justify-center gap-2 text-xl relative z-10 font-medium whitespace-nowrap">
+                                <span>(</span>{formatPoly(p2)}<span>)</span>
+                            </div>
+                        </div>
+
+                        <div className="space-y-3">
+                            {choices.map((choice, i) => {
+                                const isSelected = selectedChoice === choice;
+                                const isThisCorrect = choice.x2 === correctResult.x2 && choice.x === correctResult.x && choice.c === correctResult.c;
+                                
+                                let btnClass = "py-4 px-6 text-lg text-center justify-center rounded-2xl transition-all shadow-sm font-medium border-2 ";
+                                
+                                if (status !== 'playing') {
+                                    if (isThisCorrect) {
+                                        btnClass += 'bg-green-100 text-green-700 border-green-500 font-bold'; // 정답 강조
+                                    } else if (isSelected && status === 'wrong') {
+                                        btnClass += 'bg-red-50 text-red-500 border-red-500'; // 내가 고른 오답
+                                    } else {
+                                        btnClass += 'bg-gray-50 text-gray-400 border-gray-100 opacity-60'; // 나머지
+                                    }
+                                } else {
+                                    if (isSelected) btnClass += 'bg-blue-50 text-toss-blue border-toss-blue';
+                                    else btnClass += "bg-white text-toss-text border-gray-100 hover:border-gray-200 active:bg-gray-50";
+                                }
+                                
+                                return (
+                                    <button 
+                                        key={i} 
+                                        onClick={() => status === 'playing' && setSelectedChoice(choice)} 
+                                        className={`w-full flex items-center ${btnClass}`}
+                                        disabled={status !== 'playing'}
+                                    >
+                                        {formatPoly(choice)}
+                                    </button>
+                                );
+                            })}
+                        </div>
+
+                        {status !== 'playing' && (
+                            <Card className={`slide-up ${status === 'correct' ? '!bg-green-50 border-green-200' : '!bg-red-50 border-red-200'} p-5 mt-4`}>
+                                <div className={`flex items-center justify-center gap-2 font-bold text-lg mb-2 ${status === 'correct' ? 'text-green-600' : 'text-red-500'}`}>
+                                    {status === 'correct' ? '동류항 계산 완벽해요! 🎉' : '아쉽네요. 동류항 계산을 확인하세요!'}
+                                </div>
+                                <div className="text-center mt-2 text-gray-700 text-sm break-keep">
+                                    각 다항식의 <b>동류항</b>(차수와 문자가 같은 항)끼리 묶어서 더하거나 빼야 올바른 답이 나옵니다.
+                                </div>
+                            </Card>
+                        )}
+                    </div>
+
+                    <div className="pt-2 mt-auto z-10 bg-gradient-to-t from-[#F2F4F6] pb-2">
+                        {status === 'playing' ? (
+                            <Button onClick={handleCheck} disabled={!selectedChoice}>
+                                정답 확인
+                            </Button>
+                        ) : (
+                            <Button onClick={onComplete} className="!bg-toss-text">다음 단계로 가기</Button>
+                        )}
+                    </div>
+                </div>
+            );
+        };
+
+        const Stage3 = ({ onComplete, onAttempt }) => {
+            const [cards] = React.useState(() => Array(9).fill(null).map(() => generatePoly('stage3')));
+            
+            // 변경된 상태 관리
+            const [phase, setPhase] = React.useState('picking'); // picking -> solving -> result
+            const [selectedIndices, setSelectedIndices] = React.useState([]);
+            const [ops, setOps] = React.useState([]);
+            
+            const [ansX, setAnsX] = React.useState('');
+            const [ansY, setAnsY] = React.useState('');
+            const [status, setStatus] = React.useState('playing');
+
+            const handleCardClick = (index) => {
+                if (phase !== 'picking') return;
+                if (selectedIndices.includes(index)) return;
+                
+                // 효과음 (선택적)
+                if (AudioEngine.isInit && !AudioEngine.isMuted) {
+                    AudioEngine.synth.triggerAttackRelease("C5", "32n");
+                }
+                
+                const newSelected = [...selectedIndices, index];
+                setSelectedIndices(newSelected);
+                
+                if (newSelected.length === 3) {
+                    const generatedOps = [Math.random() > 0.5 ? '+' : '-', Math.random() > 0.5 ? '+' : '-'];
+                    setOps(generatedOps);
+                    
+                    // 카드가 뒤집히는 시간을 고려하여 0.8초 후 문제 풀기 단계로 전환
+                    setTimeout(() => {
+                        setPhase('solving');
+                    }, 800);
+                }
+            };
+
+            const correctResult = React.useMemo(() => {
+                if (selectedIndices.length !== 3 || ops.length !== 2) return {x:0, y:0};
+                let current = cards[selectedIndices[0]];
+                current = calcPoly(current, cards[selectedIndices[1]], ops[0]);
+                current = calcPoly(current, cards[selectedIndices[2]], ops[1]);
+                return current;
+            }, [cards, selectedIndices, ops]);
+
+            const checkAnswer = () => {
+                const isHit = parseInt(ansX) === correctResult.x && parseInt(ansY) === correctResult.y;
+                const hasSub = ops.includes('-');
+                onAttempt(isHit, hasSub ? '-' : '+'); 
+
+                setStatus(isHit ? 'correct' : 'wrong');
+                setPhase('result');
+            };
+
+            const labels = ['A', 'B', 'C'];
+
+            return (
+                <div className="flex flex-col h-full fade-in pb-6 px-5">
+                    <div className="flex-1 overflow-y-auto hide-scrollbar space-y-4 pt-2 pb-4">
+                        <p className="text-toss-textSecondary text-sm font-medium mb-2">
+                            {phase === 'picking' ? '카드를 3장 뒤집어주세요!' : '선택된 카드의 다항식을 순서대로 계산하세요.'}
+                        </p>
+                        
+                        <div className="grid grid-cols-3 gap-2">
+                            {cards.map((poly, i) => {
+                                const isSelected = selectedIndices.includes(i);
+                                const order = selectedIndices.indexOf(i);
+                                return (
+                                    <div key={i} onClick={() => handleCardClick(i)} className={`flip-card h-16 cursor-pointer ${isSelected ? 'flipped' : ''}`}>
+                                        <div className="flip-card-inner">
+                                            <div className="flip-card-front">?</div>
+                                            <div className="flip-card-back flex-col bg-blue-50/50">
+                                                {isSelected && <span className="absolute -top-2 -right-2 w-5 h-5 bg-toss-blue text-white rounded-full flex items-center justify-center text-[10px] font-bold shadow-md z-10">{labels[order]}</span>}
+                                                <div className="text-sm font-medium text-toss-text">{formatPoly(poly)}</div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                );
+                            })}
+                        </div>
+
+                        {phase !== 'picking' && (
+                            <div className="bg-gray-800 rounded-2xl py-3 flex items-center justify-center gap-3 text-xl font-bold text-white shadow-inner mt-4 slide-up">
+                                <span className="text-blue-300">A</span>
+                                <span className="text-gray-400">{ops[0]}</span>
+                                <span className="text-pink-300">B</span>
+                                <span className="text-gray-400">{ops[1]}</span>
+                                <span className="text-yellow-300">C</span>
+                            </div>
+                        )}
+
+                        {phase === 'solving' && (
+                            <Card className="slide-up p-4 border-2 border-transparent mt-4">
+                                <h3 className="font-bold text-sm text-toss-textSecondary mb-3">계산된 계수를 입력하세요</h3>
+                                <div className="space-y-3">
+                                    <div className="flex items-center gap-3">
+                                        <span className="font-bold text-toss-text w-16 bg-gray-50 py-2 rounded-xl text-center border border-gray-100"><span className="math-font italic">x</span> 계수</span>
+                                        <input type="number" value={ansX} onChange={e => setAnsX(e.target.value)} className="flex-1 toss-input py-2 text-center font-bold text-lg" placeholder="?" />
+                                    </div>
+                                    <div className="flex items-center gap-3">
+                                        <span className="font-bold text-toss-text w-16 bg-gray-50 py-2 rounded-xl text-center border border-gray-100"><span className="math-font italic">y</span> 계수</span>
+                                        <input type="number" value={ansY} onChange={e => setAnsY(e.target.value)} className="flex-1 toss-input py-2 text-center font-bold text-lg" placeholder="?" />
+                                    </div>
+                                </div>
+                            </Card>
+                        )}
+                        
+                        {phase === 'result' && (
+                            <Card className={`slide-up ${status === 'correct' ? '!bg-green-50 border-green-200' : '!bg-red-50 border-red-200'} mt-4 p-4`}>
+                                <div className={`text-center font-bold mb-2 text-lg ${status === 'correct' ? 'text-green-600' : 'text-red-500'}`}>
+                                    {status === 'correct' ? '완벽하게 계산했어요! 🎉' : '아쉽게도 오답입니다! 해설을 확인하세요.'}
+                                </div>
+                                <div className={`bg-white rounded-xl p-3 border ${status === 'correct' ? 'border-green-100' : 'border-red-100'} flex flex-col items-center`}>
+                                    <span className="text-sm text-gray-500 mb-1">올바른 최종 다항식</span>
+                                    <div className="text-xl font-bold text-toss-text">{formatPoly(correctResult)}</div>
+                                </div>
+                                {status === 'wrong' && (
+                                    <p className="mt-2 text-xs text-gray-600 text-center break-keep">
+                                        뺄셈이 있을 경우 뒷부분 다항식의 <b>모든 항의 부호가 바뀐다</b>는 점을 잊지 마세요!
+                                    </p>
+                                )}
+                            </Card>
+                        )}
+                    </div>
+
+                    <div className="pt-2 mt-auto z-10 bg-gradient-to-t from-[#F2F4F6] pb-2">
+                        {phase === 'picking' ? (
+                            <Button disabled={true} className="!bg-gray-300">카드를 3장 골라주세요 ({selectedIndices.length}/3)</Button>
+                        ) : phase === 'solving' ? (
+                            <Button onClick={checkAnswer} disabled={ansX === '' || ansY === ''}>
+                                정답 확인
+                            </Button>
+                        ) : (
+                            <Button onClick={onComplete} className="!bg-toss-text">결과 보기</Button>
+                        )}
+                    </div>
+                </div>
+            );
+        };
+
+        const App = () => {
+            const [gameState, setGameState] = React.useState('login');
+            const [name, setName] = React.useState('');
+            
+            // Audio state
+            const [isMuted, setIsMuted] = React.useState(false);
+            
+            const [stats, setStats] = React.useState({
+                hits: 0,          
+                subMistakes: 0,   
+                startTime: null,  
+                endTime: null     
+            });
+
+            const toggleMute = () => {
+                const muted = AudioEngine.toggleMute();
+                setIsMuted(muted);
+            };
+
+            const recordAttempt = (isCorrect, op) => {
+                setStats(prev => ({
+                    ...prev,
+                    hits: isCorrect ? prev.hits + 1 : prev.hits,
+                    subMistakes: (!isCorrect && op === '-') ? prev.subMistakes + 1 : prev.subMistakes
+                }));
+            };
+
+            const startGame = async () => {
+                setStats({ hits: 0, subMistakes: 0, startTime: Date.now(), endTime: null });
+                setGameState('stage1_1');
+                
+                // 브라우저 정책상 사용자 인터랙션 후 오디오 시작
+                await AudioEngine.init();
+            };
+
+            const finishGame = () => {
+                setStats(prev => ({ ...prev, endTime: Date.now() }));
+                setGameState('result');
+                AudioEngine.stop(); // 게임 끝나면 음악 끄기
+            };
+
+            // 다시하기 시 전체 리셋
+            const resetGame = () => {
+                setGameState('login');
+                setName('');
+                AudioEngine.isInit = false; // 음악 재초기화를 위해
+            };
+
+            const stages = {
+                'login': { title: '다항식 합차 마스터', step: 0 },
+                'stage1_1': { title: '1단계: 기본 덧뺄셈 (1/2)', step: 1 },
+                'stage1_2': { title: '1단계: 기본 덧뺄셈 (2/2)', step: 2 },
+                'stage2_1': { title: '2단계: 동류항 찾기 (1/2)', step: 3 },
+                'stage2_2': { title: '2단계: 동류항 찾기 (2/2)', step: 4 },
+                'stage3': { title: '3단계: 마스터 미션', step: 5 },
+                'result': { title: '학습 완료!', step: 6 }
+            };
+
+            const current = stages[gameState];
+
+            const renderResult = () => {
+                const timeInSec = Math.floor((stats.endTime - stats.startTime) / 1000);
+                const mins = Math.floor(timeInSec / 60);
+                const secs = timeInSec % 60;
+                
+                // 단판 승부이므로 총 5문제
+                const TOTAL_STAGES = 5;
+                const accuracy = Math.round((stats.hits / TOTAL_STAGES) * 100);
+                const finalScore = accuracy; // 정답률이 곧 점수 (문제당 20점)
+
+                // 맞춤형 피드백 도출
+                let feedbackMsg = "";
+                if (stats.subMistakes > 0) {
+                    feedbackMsg = "💡 뺄셈('-')을 할 때, 뒤에 오는 다항식의 모든 항의 부호가 바뀐다는 점에 주의하세요!";
+                } else if (accuracy === 100) {
+                    feedbackMsg = "🌟 완벽합니다! 다항식의 계산 원리를 완전히 마스터하셨네요!";
+                } else if (accuracy >= 80) {
+                    feedbackMsg = "👍 아주 훌륭해요! 조금만 더 꼼꼼히 확인하면 완벽할 거예요.";
+                } else {
+                    feedbackMsg = "✏️ 동류항을 찾고 부호를 계산하는 과정을 천천히 다시 연습해 보세요.";
+                }
+
+                return (
+                    <div className="flex-1 flex flex-col px-5 justify-center items-center fade-in overflow-y-auto hide-scrollbar pb-6">
+                        <div className="w-20 h-20 bg-yellow-100 rounded-full flex items-center justify-center mb-4 slide-up shadow-inner">
+                            <span className="text-4xl">🏆</span>
+                        </div>
+                        <h2 className="text-2xl font-bold text-toss-text mb-6 text-center">{name} 님의 리포트</h2>
+                        
+                        <div className="w-full flex gap-3 mb-3 slide-up" style={{animationDelay: '0.1s'}}>
+                            <Card className="flex-1 p-4 text-center border-none bg-blue-50">
+                                <p className="text-xs font-bold text-blue-500 mb-1">소요 시간</p>
+                                <div className="text-xl font-extrabold text-toss-text">{mins > 0 ? `${mins}분 ` : ''}{secs}초</div>
+                            </Card>
+                            <Card className="flex-1 p-4 text-center border-none bg-green-50">
+                                <p className="text-xs font-bold text-green-500 mb-1">정답률</p>
+                                <div className="text-xl font-extrabold text-toss-text">{accuracy}%</div>
+                            </Card>
+                        </div>
+
+                        <Card className="w-full mb-4 py-8 !bg-toss-blue text-white shadow-lg shadow-blue-200/50 slide-up border-none" style={{animationDelay: '0.2s'}}>
+                            <div className="text-center">
+                                <p className="text-blue-200 font-medium text-sm mb-1">최종 마스터 점수</p>
+                                <div className="text-5xl font-extrabold flex items-baseline justify-center gap-1">
+                                    {finalScore} <span className="text-2xl font-medium opacity-80">점</span>
+                                </div>
+                            </div>
+                        </Card>
+
+                        <div className="w-full bg-gray-50 rounded-2xl p-4 border border-gray-200 mb-8 slide-up text-sm font-medium text-gray-700 leading-relaxed text-center" style={{animationDelay: '0.3s', wordBreak: 'keep-all'}}>
+                            {feedbackMsg}
+                        </div>
+
+                        <Button onClick={resetGame} variant="secondary" className="mt-auto">
+                            처음부터 다시하기
+                        </Button>
+                    </div>
+                );
+            };
+
+            return (
+                <div className="flex flex-col h-full w-full relative">
+                    {gameState !== 'login' && gameState !== 'result' && (
+                        <Header 
+                            title={current.title} 
+                            step={current.step} 
+                            maxStep={5} 
+                            isMuted={isMuted} 
+                            toggleMute={toggleMute} 
+                        />
+                    )}
+
+                    {gameState === 'login' && (
+                        <div className="flex-1 flex flex-col px-6 justify-center fade-in">
+                            <div className="mb-10 text-center">
+                                <div className="w-20 h-20 bg-blue-100 rounded-3xl mx-auto mb-6 flex items-center justify-center shadow-inner">
+                                    <svg className="w-10 h-10 text-toss-blue" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z" /></svg>
+                                </div>
+                                <h1 className="text-3xl font-extrabold text-toss-text mb-3 tracking-tight">다항식 합차 마스터</h1>
+                                <p className="text-toss-textSecondary font-medium">중학교 2학년 다항식의 덧셈과 뺄셈</p>
+                                <p className="text-xs text-blue-400 mt-2">🔊 소리를 켜고 진행하면 더욱 재밌어요!</p>
+                            </div>
+                            <div className="space-y-4">
+                                <input 
+                                    type="text" 
+                                    placeholder="이름을 입력하세요" 
+                                    value={name}
+                                    onChange={e => setName(e.target.value)}
+                                    className="toss-input w-full py-4 text-xl text-center shadow-sm"
+                                    maxLength={10}
+                                />
+                                <Button onClick={startGame} disabled={name.trim().length === 0}>
+                                    학습 시작하기
+                                </Button>
+                            </div>
+                        </div>
+                    )}
+
+                    {gameState === 'stage1_1' && <Stage1 key="1-1" onAttempt={recordAttempt} onComplete={() => setGameState('stage1_2')} />}
+                    {gameState === 'stage1_2' && <Stage1 key="1-2" onAttempt={recordAttempt} onComplete={() => setGameState('stage2_1')} />}
+                    
+                    {gameState === 'stage2_1' && <Stage2 key="2-1" onAttempt={recordAttempt} onComplete={() => setGameState('stage2_2')} />}
+                    {gameState === 'stage2_2' && <Stage2 key="2-2" onAttempt={recordAttempt} onComplete={() => setGameState('stage3')} />}
+                    
+                    {gameState === 'stage3' && <Stage3 key="3" onAttempt={recordAttempt} onComplete={finishGame} />}
+
+                    {gameState === 'result' && renderResult()}
+                </div>
+            );
+        };
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+</html>
